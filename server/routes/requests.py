@@ -380,3 +380,47 @@ async def get_job_status(request_id: str):
         return status
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to get job status: {str(e)}")
+
+
+@router.get("/{request_id}/notebook")
+async def get_notebook_content(request_id: str):
+    """Get the notebook content for a request (parsed as JSON)."""
+    import json
+
+    pool = await db.get_pool()
+    if pool is None:
+        raise HTTPException(status_code=503, detail="Database not available")
+
+    async with pool.acquire() as conn:
+        row = await conn.fetchrow(
+            f"SELECT notebook_content, notebook_name FROM {get_table_name('approval_requests')} WHERE request_id = $1",
+            request_id,
+        )
+
+    if not row:
+        raise HTTPException(status_code=404, detail="Request not found")
+
+    if not row["notebook_content"]:
+        raise HTTPException(status_code=404, detail="Notebook content not available")
+
+    try:
+        # Parse the notebook content as JSON (Jupyter notebook format)
+        notebook_data = json.loads(row["notebook_content"])
+        return notebook_data
+    except json.JSONDecodeError:
+        # If it's not valid JSON, return it as raw content
+        return {
+            "cells": [
+                {
+                    "cell_type": "code",
+                    "source": row["notebook_content"].split("\n"),
+                    "outputs": [],
+                }
+            ],
+            "metadata": {
+                "kernelspec": {
+                    "display_name": "Python",
+                    "language": "python",
+                }
+            },
+        }
