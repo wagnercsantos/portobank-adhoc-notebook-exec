@@ -287,14 +287,16 @@ async def process_request(
                     justification=row["justification"],
                 )
 
+                # Job created and started successfully - mark as executed
                 row = await conn.fetchrow(
                     f"""
                     UPDATE {get_table_name("approval_requests")}
-                    SET status = 'approved',
+                    SET status = 'executed',
                         approver_email = $1,
                         approver_name = $2,
                         approval_notes = $3,
                         approved_at = $4,
+                        executed_at = $4,
                         updated_at = $4,
                         job_id = $5,
                         job_run_id = $6

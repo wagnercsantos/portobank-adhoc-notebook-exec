@@ -12,6 +12,7 @@ import type { ApprovalRequest } from '../types';
 import StatusBadge from './StatusBadge';
 import Modal from './Modal';
 import NotebookViewer from './NotebookViewer';
+import { useAppStore } from '../stores/appStore';
 
 interface RequestCardProps {
   request: ApprovalRequest;
@@ -31,6 +32,7 @@ export default function RequestCard({
   const [notes, setNotes] = useState('');
   const [processing, setProcessing] = useState(false);
   const [showNotebook, setShowNotebook] = useState(false);
+  const { config } = useAppStore();
 
   const handleApprove = async () => {
     if (onApprove) {
@@ -147,7 +149,7 @@ export default function RequestCard({
               <div className="col-span-2">
                 <p className="text-gray-500 mb-1">Job Information</p>
                 <a
-                  href={`/jobs/${request.job_id}/runs/${request.job_run_id}`}
+                  href={`${config?.workspace_host || ''}/jobs/${request.job_id}/runs/${request.job_run_id}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 text-blue-600 hover:underline"
