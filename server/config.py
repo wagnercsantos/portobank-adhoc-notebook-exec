@@ -101,15 +101,30 @@ def get_oauth_token() -> str:
 
 
 def get_workspace_host() -> str:
-    """Get workspace host URL with https:// prefix."""
-    if IS_DATABRICKS_APP:
-        # IMPORTANT: DATABRICKS_HOST in Databricks Apps is just hostname, no scheme
-        host = os.environ.get("DATABRICKS_HOST", "")
-        if host and not host.startswith("http"):
+    """Get workspace host URL with https:// prefix.
+
+    Priority:
+    1. DATABRICKS_HOST env var (works for both local and Databricks Apps)
+    2. SDK config host (fallback)
+    """
+    # First, try DATABRICKS_HOST env var directly
+    host = os.environ.get("DATABRICKS_HOST", "")
+    if host:
+        # Ensure https:// prefix
+        if not host.startswith("http"):
             host = f"https://{host}"
+        print(f"[Config] Using DATABRICKS_HOST: {host}")
         return host
-    client = get_workspace_client()
-    return client.config.host  # SDK includes https://
+
+    # Fallback to SDK config
+    try:
+        client = get_workspace_client()
+        host = client.config.host
+        print(f"[Config] Using SDK config host: {host}")
+        return host
+    except Exception as e:
+        print(f"[Config] Failed to get host from SDK: {e}")
+        return ""
 
 
 def get_current_user() -> dict:

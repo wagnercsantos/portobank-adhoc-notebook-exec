@@ -1,8 +1,14 @@
 import { create } from 'zustand';
 import type { User, ApprovalRequest, AuditStats } from '../types';
 
+interface AppConfig {
+  workspace_host: string;
+  app_name: string;
+}
+
 interface AppState {
   user: User | null;
+  config: AppConfig | null;
   myRequests: ApprovalRequest[];
   pendingRequests: ApprovalRequest[];
   allRequests: ApprovalRequest[];
@@ -11,6 +17,7 @@ interface AppState {
   error: string | null;
 
   setUser: (user: User | null) => void;
+  setConfig: (config: AppConfig | null) => void;
   setMyRequests: (requests: ApprovalRequest[]) => void;
   setPendingRequests: (requests: ApprovalRequest[]) => void;
   setAllRequests: (requests: ApprovalRequest[]) => void;
@@ -18,6 +25,7 @@ interface AppState {
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
 
+  fetchConfig: () => Promise<void>;
   fetchUser: () => Promise<void>;
   fetchMyRequests: () => Promise<void>;
   fetchPendingRequests: () => Promise<void>;
@@ -29,6 +37,7 @@ interface AppState {
 
 export const useAppStore = create<AppState>((set, get) => ({
   user: null,
+  config: null,
   myRequests: [],
   pendingRequests: [],
   allRequests: [],
@@ -37,12 +46,24 @@ export const useAppStore = create<AppState>((set, get) => ({
   error: null,
 
   setUser: (user) => set({ user }),
+  setConfig: (config) => set({ config }),
   setMyRequests: (myRequests) => set({ myRequests }),
   setPendingRequests: (pendingRequests) => set({ pendingRequests }),
   setAllRequests: (allRequests) => set({ allRequests }),
   setAuditStats: (auditStats) => set({ auditStats }),
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
+
+  fetchConfig: async () => {
+    try {
+      const response = await fetch('/api/users/config');
+      if (!response.ok) throw new Error('Failed to fetch config');
+      const config = await response.json();
+      set({ config });
+    } catch (error) {
+      console.error('Failed to fetch config:', error);
+    }
+  },
 
   fetchUser: async () => {
     try {

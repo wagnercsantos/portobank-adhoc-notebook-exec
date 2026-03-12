@@ -5,7 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel
 from ..models import UserInfo
-from ..config import get_current_user, IS_DATABRICKS_APP
+from ..config import get_current_user, IS_DATABRICKS_APP, get_workspace_host
 from ..db import (
     is_admin as db_is_admin,
     is_approver as db_is_approver,
@@ -167,3 +167,13 @@ async def delete_approver_user(
         raise HTTPException(status_code=404, detail="Approver not found")
 
     return {"message": f"Approver {email} removed successfully"}
+
+
+@router.get("/config")
+async def get_app_config():
+    """Get application configuration including workspace URL."""
+    workspace_host = get_workspace_host()
+    return {
+        "workspace_host": workspace_host,
+        "app_name": os.environ.get("APP_NAME", "Notebook Approval System"),
+    }

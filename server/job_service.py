@@ -42,6 +42,7 @@ async def create_approval_job(
     }
 
     # Create the job with serverless compute
+    # Note: Using simple dict-based parameters for SDK compatibility
     job = client.jobs.create(
         name=job_name,
         tasks=[
@@ -50,28 +51,26 @@ async def create_approval_job(
                 notebook_task=NotebookTask(
                     notebook_path=notebook_path,
                 ),
-                # Use serverless compute
-                environment_key="default",
             )
         ],
         tags=tags,
-        # Grant the requester permission to view the job
-        access_control_list=[
-            {
-                "user_name": requester_email,
-                "permission_level": "CAN_VIEW",
-            }
-        ],
-        # Set serverless environment
-        environments=[
-            {
-                "environment_key": "default",
-                "spec": {
-                    "client": "1",
-                },
-            }
-        ],
     )
+
+    # Grant the requester permission to view the job using the permissions API
+    try:
+        client.permissions.set(
+            request_object_type="jobs",
+            request_object_id=str(job.job_id),
+            access_control_list=[
+                {
+                    "user_name": requester_email,
+                    "all_permissions": [{"permission_level": "CAN_VIEW"}],
+                }
+            ],
+        )
+    except Exception:
+        # Permission setting is optional, continue if it fails
+        pass
 
     job_id = job.job_id
 

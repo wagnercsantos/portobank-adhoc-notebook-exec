@@ -1,7 +1,12 @@
-import { useEffect, useState } from 'react';
-import { BarChart3, RefreshCw, Filter } from 'lucide-react';
+import { useEffect, useState, useMemo } from 'react';
+import { BarChart3, RefreshCw } from 'lucide-react';
 import { useAppStore } from '../stores/appStore';
 import RequestCard from '../components/RequestCard';
+import Filters from '../components/Filters';
+import Pagination from '../components/Pagination';
+import MetricsCharts from '../components/MetricsCharts';
+
+const ITEMS_PER_PAGE = 10;
 
 export default function AuditDashboard() {
   const {
@@ -12,26 +17,74 @@ export default function AuditDashboard() {
     loading,
     error,
   } = useAppStore();
+
+  // Filter states
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [userFilter, setUserFilter] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+
+  // View state
+  const [showMetrics, setShowMetrics] = useState(true);
 
   useEffect(() => {
     fetchAllRequests();
     fetchAuditStats();
   }, [fetchAllRequests, fetchAuditStats]);
 
-  const filteredRequests =
-    statusFilter === 'all'
-      ? allRequests
-      : allRequests.filter((r) => r.status === statusFilter);
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, userFilter, dateFrom, dateTo]);
 
-  const statCards = [
-    { label: 'Total Requests', value: auditStats?.total_requests || 0, color: 'bg-gray-100' },
-    { label: 'Pending', value: auditStats?.pending || 0, color: 'bg-yellow-100' },
-    { label: 'Approved', value: auditStats?.approved || 0, color: 'bg-green-100' },
-    { label: 'Rejected', value: auditStats?.rejected || 0, color: 'bg-red-100' },
-    { label: 'Executed', value: auditStats?.executed || 0, color: 'bg-blue-100' },
-    { label: 'Failed', value: auditStats?.failed || 0, color: 'bg-red-100' },
-  ];
+  const filteredRequests = useMemo(() => {
+    return allRequests.filter((r) => {
+      // Status filter
+      if (statusFilter !== 'all' && r.status !== statusFilter) return false;
+
+      // User filter
+      if (userFilter) {
+        const search = userFilter.toLowerCase();
+        if (
+          !r.requester_name.toLowerCase().includes(search) &&
+          !r.requester_email.toLowerCase().includes(search)
+        ) {
+          return false;
+        }
+      }
+
+      // Date filters
+      const requestDate = new Date(r.created_at);
+      if (dateFrom) {
+        const fromDate = new Date(dateFrom);
+        if (requestDate < fromDate) return false;
+      }
+      if (dateTo) {
+        const toDate = new Date(dateTo);
+        toDate.setHours(23, 59, 59, 999);
+        if (requestDate > toDate) return false;
+      }
+
+      return true;
+    });
+  }, [allRequests, statusFilter, userFilter, dateFrom, dateTo]);
+
+  // Paginated requests
+  const totalPages = Math.ceil(filteredRequests.length / ITEMS_PER_PAGE);
+  const paginatedRequests = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredRequests.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredRequests, currentPage]);
+
+  const clearFilters = () => {
+    setStatusFilter('all');
+    setUserFilter('');
+    setDateFrom('');
+    setDateTo('');
+  };
 
   return (
     <div>
@@ -42,17 +95,30 @@ export default function AuditDashboard() {
             Complete history of all notebook execution requests
           </p>
         </div>
-        <button
-          onClick={() => {
-            fetchAllRequests();
-            fetchAuditStats();
-          }}
-          disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg"
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setShowMetrics(!showMetrics)}
+            className={`px-4 py-2 rounded-lg transition-colors ${
+              showMetrics
+                ? 'bg-blue-100 text-blue-700'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            <BarChart3 className="w-4 h-4 inline mr-2" />
+            Metrics
+          </button>
+          <button
+            onClick={() => {
+              fetchAllRequests();
+              fetchAuditStats();
+            }}
+            disabled={loading}
+            className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -61,36 +127,30 @@ export default function AuditDashboard() {
         </div>
       )}
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
-        {statCards.map((stat) => (
-          <div
-            key={stat.label}
-            className={`${stat.color} rounded-lg p-4 text-center`}
-          >
-            <p className="text-2xl font-bold">{stat.value}</p>
-            <p className="text-sm text-gray-600">{stat.label}</p>
-          </div>
-        ))}
-      </div>
+      {/* Metrics Dashboard */}
+      {showMetrics && (
+        <div className="mb-8">
+          <MetricsCharts stats={auditStats} />
+        </div>
+      )}
 
-      {/* Filter */}
-      <div className="flex items-center gap-4 mb-6">
-        <Filter className="w-5 h-5 text-gray-500" />
-        <select
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="all">All Statuses</option>
-          <option value="pending">Pending</option>
-          <option value="approved">Approved</option>
-          <option value="rejected">Rejected</option>
-          <option value="executed">Executed</option>
-          <option value="failed">Failed</option>
-        </select>
+      {/* Filters */}
+      <Filters
+        statusFilter={statusFilter}
+        onStatusChange={setStatusFilter}
+        userFilter={userFilter}
+        onUserChange={setUserFilter}
+        dateFrom={dateFrom}
+        onDateFromChange={setDateFrom}
+        dateTo={dateTo}
+        onDateToChange={setDateTo}
+        onClearFilters={clearFilters}
+      />
+
+      {/* Results count */}
+      <div className="flex items-center justify-between mb-4">
         <span className="text-gray-500">
-          Showing {filteredRequests.length} requests
+          Showing {filteredRequests.length} of {allRequests.length} requests
         </span>
       </div>
 
@@ -100,24 +160,43 @@ export default function AuditDashboard() {
           <RefreshCw className="w-8 h-8 text-gray-400 animate-spin mx-auto mb-4" />
           <p className="text-gray-500">Loading audit data...</p>
         </div>
-      ) : filteredRequests.length === 0 ? (
+      ) : paginatedRequests.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-lg shadow">
           <BarChart3 className="w-12 h-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">
             No requests found
           </h3>
           <p className="text-gray-500">
-            {statusFilter === 'all'
+            {statusFilter === 'all' && !userFilter && !dateFrom && !dateTo
               ? 'No notebook execution requests have been made yet.'
-              : `No requests with status "${statusFilter}".`}
+              : 'No requests match your filter criteria.'}
           </p>
+          {(statusFilter !== 'all' || userFilter || dateFrom || dateTo) && (
+            <button
+              onClick={clearFilters}
+              className="mt-4 px-4 py-2 text-blue-600 hover:text-blue-800"
+            >
+              Clear filters
+            </button>
+          )}
         </div>
       ) : (
-        <div>
-          {filteredRequests.map((request) => (
-            <RequestCard key={request.request_id} request={request} />
-          ))}
-        </div>
+        <>
+          <div>
+            {paginatedRequests.map((request) => (
+              <RequestCard key={request.request_id} request={request} />
+            ))}
+          </div>
+
+          {/* Pagination */}
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+            totalItems={filteredRequests.length}
+            itemsPerPage={ITEMS_PER_PAGE}
+          />
+        </>
       )}
     </div>
   );

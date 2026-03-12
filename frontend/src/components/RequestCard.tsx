@@ -6,15 +6,20 @@ import {
   ExternalLink,
   ChevronDown,
   ChevronUp,
+  Eye,
 } from 'lucide-react';
 import type { ApprovalRequest } from '../types';
 import StatusBadge from './StatusBadge';
+import Modal from './Modal';
+import NotebookViewer from './NotebookViewer';
+import { useAppStore } from '../stores/appStore';
 
 interface RequestCardProps {
   request: ApprovalRequest;
   showApprovalActions?: boolean;
   onApprove?: (notes: string) => void;
   onReject?: (notes: string) => void;
+  onViewNotebook?: () => void;
 }
 
 export default function RequestCard({
@@ -26,6 +31,8 @@ export default function RequestCard({
   const [expanded, setExpanded] = useState(false);
   const [notes, setNotes] = useState('');
   const [processing, setProcessing] = useState(false);
+  const [showNotebook, setShowNotebook] = useState(false);
+  const { config } = useAppStore();
 
   const handleApprove = async () => {
     if (onApprove) {
@@ -77,6 +84,14 @@ export default function RequestCard({
           <p className="text-gray-700 mb-2">
             <strong>Justification:</strong> {request.justification}
           </p>
+
+          <button
+            onClick={() => setShowNotebook(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors"
+          >
+            <Eye className="w-4 h-4" />
+            View Notebook
+          </button>
         </div>
 
         <button
@@ -90,6 +105,16 @@ export default function RequestCard({
           )}
         </button>
       </div>
+
+      {/* Notebook Viewer Modal */}
+      <Modal
+        isOpen={showNotebook}
+        onClose={() => setShowNotebook(false)}
+        title={`Notebook: ${request.notebook_name}`}
+        size="full"
+      >
+        <NotebookViewer requestId={request.request_id} notebookName={request.notebook_name} />
+      </Modal>
 
       {expanded && (
         <div className="mt-4 pt-4 border-t border-gray-200">
@@ -124,7 +149,7 @@ export default function RequestCard({
               <div className="col-span-2">
                 <p className="text-gray-500 mb-1">Job Information</p>
                 <a
-                  href={`/jobs/${request.job_id}/runs/${request.job_run_id}`}
+                  href={`${config?.workspace_host || ''}/jobs/${request.job_id}/runs/${request.job_run_id}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 text-blue-600 hover:underline"

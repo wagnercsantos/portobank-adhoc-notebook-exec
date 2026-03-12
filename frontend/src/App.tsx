@@ -9,11 +9,12 @@ import AuditDashboard from './pages/AuditDashboard';
 import Admin from './pages/Admin';
 
 function App() {
-  const { fetchUser, user } = useAppStore();
+  const { fetchUser, fetchConfig, user } = useAppStore();
 
   useEffect(() => {
     fetchUser();
-  }, [fetchUser]);
+    fetchConfig();
+  }, [fetchUser, fetchConfig]);
 
   return (
     <Layout>
