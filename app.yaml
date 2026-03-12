@@ -1,0 +1,28 @@
+command:
+  - "python"
+  - "-m"
+  - "uvicorn"
+  - "app:app"
+  - "--host"
+  - "0.0.0.0"
+  - "--port"
+  - "8000"
+
+env:
+  # Lakebase connection (using native PostgreSQL login)
+  - name: PGHOST
+    value: "ep-delicate-waterfall-e5rfdabs.database.brazilsouth.azuredatabricks.net"
+  - name: PGPORT
+    value: "5432"
+  - name: PGDATABASE
+    value: "approvals"
+  - name: PGUSER
+    value: "notebook_app_user"
+  - name: PGPASSWORD
+    value: "SecureAppPass123!"
+
+  # App configuration
+  - name: APP_NAME
+    value: "PortoBank Notebook Approval System"
+  - name: LAKEBASE_PROJECT
+    value: "portobank-prod-adhoc-exec"
